@@ -14,6 +14,15 @@
     displayFont: '"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif',
   };
 
+  function hexRgb(hex) {
+    let h = String(hex).trim().replace('#', '');
+    if (h.length === 3) h = [...h].map(c => c + c).join('');
+    const n = parseInt(h.slice(0, 6), 16);
+    return Number.isNaN(n) ? [0, 0, 0] : [n >> 16 & 255, n >> 8 & 255, n & 255];
+  }
+  const hexLum = hex => { const [r, g, b] = hexRgb(hex); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; };
+  const invertHex = hex => '#' + hexRgb(hex).map(v => (255 - v).toString(16).padStart(2, '0')).join('');
+
   function mount(canvas, opts = {}) {
     const base = { ...DEFAULTS, ...opts };
     const s = { ...base };
@@ -37,6 +46,24 @@
     // A video entry is either a path or { src, ...settings for that clip }.
     const srcOf = v => (typeof v === 'string' ? v : v.src);
     const lookOf = v => (typeof v === 'string' ? {} : v);
+
+    // ---------- theme ----------
+    // The banner takes its colors from the page (--stage, --stage-ink) so it blends in. Dark parts of the video stay
+    // empty in both themes, which keeps the banner's edges invisible; on a light page the glyphs are drawn darker instead.
+    let light = false;
+    const srcColor = p => light
+      ? `rgb(${px[p] * 0.55 | 0},${px[p + 1] * 0.55 | 0},${px[p + 2] * 0.55 | 0})`
+      : `rgb(${px[p]},${px[p + 1]},${px[p + 2]})`;
+    let px = null;
+    function readTheme() {
+      const cs = getComputedStyle(canvas);
+      const bg = cs.getPropertyValue('--stage').trim(), ink = cs.getPropertyValue('--stage-ink').trim();
+      if (bg) base.bg = bg;
+      if (ink) base.ink = ink;
+      s.bg = base.bg; s.ink = base.ink;
+      light = hexLum(base.bg) > 0.5;
+      dirty = true;
+    }
 
     const cols = () => (narrow.matches ? s.colsMobile : s.cols) || s.cols;
     const frame = () => (narrow.matches && s.frameMobile) || s.frame;
@@ -162,8 +189,11 @@
       const d = mx - mn;
       return 60 * (mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4);
     }
+    // A fixed text color tuned on the dark stage would vanish on a light page, so light colors flip to their opposite.
+    const accentNow = () => (!light ? s.msgAccent : s.msgAccentLight || (hexLum(s.msgAccent) > 0.5 ? invertHex(s.msgAccent) : s.msgAccent));
+    let accent = s.msgAccent;
     function contrastColor(r, g, b, L) {
-      if (s.msgColor === 'accent') return s.msgAccent;
+      if (s.msgColor === 'accent') return accent;
       if (s.msgColor === 'comp') return `hsl(${(rgbToHue(r, g, b) + 180) % 360},95%,${L > 0.5 ? 22 : 68}%)`;
       const push = v => { v = 255 - v; return v > 128 ? Math.min(255, v + 60) : Math.max(0, v - 60); };
       return `rgb(${push(r)},${push(g)},${push(b)})`;
@@ -177,7 +207,7 @@
       const dw = srcW * sc / cell.w, dh = srcH * sc / cell.h;
       sctx.fillStyle = '#000'; sctx.fillRect(0, 0, cols, rows);
       sctx.drawImage(img, (cols - dw) / 2, (rows - dh) / 2, dw, dh);
-      const px = sctx.getImageData(0, 0, cols, rows).data;
+      px = sctx.getImageData(0, 0, cols, rows).data;
       const ramp = s.ramp.length ? s.ramp : ' #';
       const n = ramp.length - 1;
       const lum = new Float32Array(cols * rows);
@@ -195,6 +225,7 @@
         }
         for (let i = 0; i < lum.length; i++) if (e[i]) lum[i] = e[i];
       }
+      accent = accentNow();
       octx.fillStyle = s.bg; octx.fillRect(0, 0, W, H);
       octx.font = `${cell.font}px ${s.monoFont}`;
       octx.textBaseline = 'top';
@@ -231,8 +262,8 @@
           for (let x = 0; x < cols; x++) {
             const ch = base[x]; if (ch === ' ') continue;
             const p = (y * cols + x) * 4;
-            if (s.color === 'full') octx.fillStyle = `rgb(${px[p]},${px[p + 1]},${px[p + 2]})`;
-            else { const v = lum[y * cols + x]; octx.fillStyle = `hsl(${220 + v * 150},90%,${35 + v * 50}%)`; }
+            if (s.color === 'full') octx.fillStyle = srcColor(p);
+            else { const v = lum[y * cols + x]; octx.fillStyle = `hsl(${220 + v * 150},90%,${light ? 50 - v * 30 : 35 + v * 50}%)`; }
             octx.fillText(ch, x * cell.w, y * cell.h);
           }
         }
@@ -241,7 +272,7 @@
           const i = y * cols + x; if (!mask[i]) continue;
           const p = i * 4, col = contrastColor(px[p], px[p + 1], px[p + 2], lum[i]);
           if (alpha && alpha[i] < 1) {
-            octx.fillStyle = s.color === 'full' ? `rgb(${px[p]},${px[p + 1]},${px[p + 2]})` : s.ink;
+            octx.fillStyle = s.color === 'full' ? srcColor(p) : s.ink;
             const vch = ramp[Math.round((s.invert ? 1 - lum[i] : lum[i]) * n)];
             if (vch !== ' ') octx.fillText(vch, x * cell.w, y * cell.h);
             octx.globalAlpha = alpha[i];
@@ -294,6 +325,9 @@
     new ResizeObserver(() => { dirty = true; }).observe(canvas.parentElement);
     narrow.addEventListener('change', () => { dirty = true; });
     reduce.addEventListener('change', e => setPlaying(!e.matches));
+    readTheme();
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readTheme);
+    new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     if (document.fonts) {
       [s.monoFont, `${s.msgWeight} 40px ${s.displayFont}`].forEach(f =>
         document.fonts.load(f.includes('px') ? f : `40px ${f}`).then(() => { dirty = true; }, () => {}));
