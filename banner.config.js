@@ -10,7 +10,7 @@ window.BANNER_SETTINGS = {
   "msg": "MAX\nHULKER",
   "msgSize": 62,
   "color": "full",
-  "msgColor": "accent",
+  "msgColor": "invert",
   "msgAccent": "#f4efe6",
   "msgStyle": "block",
   "reveal": "bright",

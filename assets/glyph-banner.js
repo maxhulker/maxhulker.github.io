@@ -209,21 +209,29 @@
       return m;
     }
 
-    function rgbToHue(r, g, b) {
+    function rgbToHsl(r, g, b) {
       r /= 255; g /= 255; b /= 255;
-      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-      if (mx === mn) return 0;
-      const d = mx - mn;
-      return 60 * (mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4);
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+      if (mx === mn) return [0, 0, l];
+      const d = mx - mn, sat = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+      return [60 * (mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4), sat, l];
     }
     // A fixed text color tuned on the dark stage would vanish on a light page, so light colors flip to their opposite.
     const accentNow = () => (!light ? s.msgAccent : s.msgAccentLight || (hexLum(s.msgAccent) > 0.5 ? invertHex(s.msgAccent) : s.msgAccent));
     let accent = s.msgAccent;
     function contrastColor(r, g, b, L) {
       if (s.msgColor === 'accent') return accent;
-      if (s.msgColor === 'comp') return `hsl(${(rgbToHue(r, g, b) + 180) % 360},95%,${L > 0.5 ? 22 : 68}%)`;
-      const push = v => { v = 255 - v; return v > 128 ? Math.min(255, v + 60) : Math.max(0, v - 60); };
-      return `rgb(${push(r)},${push(g)},${push(b)})`;
+      if (s.msgColor === 'comp') return `hsl(${(rgbToHsl(r, g, b)[0] + 180) % 360},95%,${L > 0.5 ? 22 : 68}%)`;
+      // Invert, then push away from mid-grey so it never lands on a muddy middle tone. If that lands too close to the
+      // page background (inverting something bright gives near-black on the dark stage), keep the inverted hue but
+      // lift or lower its lightness so the letters don't vanish.
+      const ir = 255 - r, ig = 255 - g, ib = 255 - b;
+      const push = v => (v > 128 ? Math.min(255, v + 60) : Math.max(0, v - 60));
+      const pr = push(ir), pg = push(ig), pb = push(ib);
+      const lum = (0.2126 * pr + 0.7152 * pg + 0.0722 * pb) / 255;
+      if (light ? lum < 0.7 : lum > 0.3) return `rgb(${pr},${pg},${pb})`;
+      const [h, sat, l] = rgbToHsl(ir, ig, ib);
+      return `hsl(${h.toFixed(0)},${(sat * 100).toFixed(0)}%,${light ? Math.min(l * 100, 35) : Math.max(l * 100, 50)}%)`;
     }
 
     function render(img, srcW, srcH, t) {

@@ -386,9 +386,15 @@ REEL</textarea>
       const [h] = rgbToHsl(r, g, b);
       return `hsl(${(h + 180) % 360},95%,${L > 0.5 ? 22 : 68}%)`;
     }
-    // invert, then push away from mid-grey so it never lands on a muddy middle tone
-    const push = v => { v = 255 - v; return v > 128 ? Math.min(255, v + 60) : Math.max(0, v - 60); };
-    return `rgb(${push(r)},${push(g)},${push(b)})`;
+    // Invert, then push away from mid-grey so it never lands on a muddy middle tone. If that lands near-black
+    // (inverting something bright), keep the inverted hue but lift its lightness so the letters don't vanish
+    // into the stage. Matches the site banner (assets/glyph-banner.js).
+    const ir = 255 - r, ig = 255 - g, ib = 255 - b;
+    const push = v => (v > 128 ? Math.min(255, v + 60) : Math.max(0, v - 60));
+    const pr = push(ir), pg = push(ig), pb = push(ib);
+    if ((0.2126 * pr + 0.7152 * pg + 0.0722 * pb) / 255 > 0.3) return `rgb(${pr},${pg},${pb})`;
+    const [h, sat, l] = rgbToHsl(ir, ig, ib);
+    return `hsl(${h.toFixed(0)},${(sat * 100).toFixed(0)}%,${Math.max(l * 100, 50)}%)`;
   }
   let source = 'demo', playing = true, lastText = '', frames = 0, fpsT = performance.now(), fps = 0, demoT = 0, lastTs = 0;
 
