@@ -13,6 +13,9 @@ window.BANNER_SETTINGS = {
   "msgColor": "accent",
   "msgAccent": "#f4efe6",
   "msgStyle": "block",
+  "reveal": "motion",
+  "revealT": 85,
+  "trail": 1.5,
   "frame": "0.4286",
   "fit": "cover"
 };

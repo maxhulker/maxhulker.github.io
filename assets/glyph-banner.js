@@ -41,7 +41,7 @@
     let source = 'demo', current = -1;
     let playing = !reduce.matches, visible = true, dirty = true;
     let demoT = reduce.matches ? 3 : 0, lastTs = 0, lastRenderT = performance.now();
-    let prevLum = null, presence = null, pendingLook = null;
+    let prevLum = null, prevLumT = 0, presence = null, pendingLook = null;
     const listeners = new Set();
     // A video entry is either a path or { src, ...settings for that clip }.
     const srcOf = v => (typeof v === 'string' ? v : v.src);
@@ -161,7 +161,10 @@
         else hit = prevLum ? Math.abs(raw[i] - prevLum[i]) > 0.01 + t * 0.2 : false;
         presence[i] = hit ? 1 : presence[i] * decay;
       }
-      prevLum = raw.slice();
+      // Motion compares against a frame ~1/30s old rather than the last frame, so a 120Hz screen
+      // (or a 30fps video drawn at 60Hz) sees the same amount of change as a 60Hz one.
+      const now = performance.now();
+      if (!prevLum || now - prevLumT >= 33) { prevLum = raw.slice(); prevLumT = now; }
     }
 
     // The grid's cells are taller than wide, so the text is squashed vertically in grid space to look right on screen.
@@ -238,10 +241,10 @@
       const mask = buildMask(cols, rows, t);
       const nowR = performance.now(), dtR = Math.min(0.25, (nowR - lastRenderT) / 1000); lastRenderT = nowR;
       let alpha = null;
-      if (mask && s.reveal !== 'always') {
-        if (s.reveal !== 'motion' || playing) updatePresence(lum, dtR);
-        else if (presence) for (let i = 0; i < presence.length; i++) presence[i] *= Math.exp(-dtR / Math.max(0.05, s.trail / 3));
-        alpha = presence || new Float32Array(lum.length);
+      // Nothing moves while paused (or with reduced motion on), so a motion reveal would hide the text entirely; show it whole instead.
+      if (mask && s.reveal !== 'always' && (s.reveal !== 'motion' || playing)) {
+        updatePresence(lum, dtR);
+        alpha = presence;
         for (let i = 0; i < mask.length; i++) if (mask[i] && alpha[i] < 0.08) mask[i] = 0;
       } else { presence = null; prevLum = null; }
       const msgChars = s.msg.replace(/\s+/g, '') || '#';
