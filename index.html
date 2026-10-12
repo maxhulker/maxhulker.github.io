@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Max Hulker</title>
+<meta name="description" content="Max Hulker. Projects, tools and ways to get in touch.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Familjen+Grotesk:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="banner wrap">
+  <div class="stage">
+    <canvas id="banner" aria-hidden="true"></canvas>
+    <button class="stage-toggle" id="bannerToggle" type="button">Pause</button>
+  </div>
+  <div class="topbar">
+    <span>max hulker</span>
+    <nav aria-label="Sections">
+      <a href="#work">Work</a>
+      <a href="#tools">Tools</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="intro">
+    <h1>Hi, I'm Max. <span>One line on what you do goes here.</span></h1>
+    <p>A couple of sentences about you: what you work on, what you're into, and what you'd like people to get in touch about.</p>
+  </div>
+
+  <section id="work" aria-labelledby="work-h">
+    <h2 id="work-h">Selected work</h2>
+    <ol class="list">
+      <li>
+        <span class="yr">2026</span>
+        <div><h3>Project one</h3><p>What it is, and what you did on it, in one sentence.</p></div>
+        <a class="go" href="#">View</a>
+      </li>
+      <li>
+        <span class="yr">2026</span>
+        <div><h3>Project two</h3><p>What it is, and what you did on it, in one sentence.</p></div>
+        <a class="go" href="#">View</a>
+      </li>
+      <li>
+        <span class="yr">2025</span>
+        <div><h3>Project three</h3><p>What it is, and what you did on it, in one sentence.</p></div>
+        <a class="go" href="#">View</a>
+      </li>
+    </ol>
+  </section>
+
+  <section id="tools" aria-labelledby="tools-h">
+    <h2 id="tools-h">Tools</h2>
+    <a class="tool" href="glyph-reel/">
+      <span class="glyph" aria-hidden="true">@%#</span>
+      <h3>Glyph Reel</h3>
+      <p>Turns video into live ASCII art in the browser, with text stamped into the grid and video export. The banner at the top of this page is drawn with it, live.</p>
+      <span class="cta">Open Glyph Reel →</span>
+    </a>
+  </section>
+
+  <section id="contact" aria-labelledby="contact-h">
+    <h2 id="contact-h">Contact</h2>
+    <ul class="links">
+      <li><a href="#">Email</a></li>
+      <li><a href="#">GitHub</a></li>
+      <li><a href="#">LinkedIn</a></li>
+      <li><a href="#">Instagram</a></li>
+    </ul>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span>© 2026 Max Hulker</span>
+  <span>Banner rendered live with <a href="glyph-reel/">Glyph Reel</a></span>
+</footer>
+
+<script src="banner.config.js"></script>
+<script src="assets/glyph-banner.js"></script>
+<script>
+  const banner = GlyphBanner.mount(document.getElementById('banner'), {
+    ...window.BANNER_SETTINGS,
+    ...window.BANNER_MOBILE,
+    videos: window.BANNER_VIDEOS || [],
+  });
+  const toggle = document.getElementById('bannerToggle');
+  const sync = playing => { toggle.textContent = playing ? 'Pause' : 'Play'; toggle.setAttribute('aria-label', playing ? 'Pause banner animation' : 'Play banner animation'); };
+  toggle.addEventListener('click', banner.toggle);
+  banner.onChange(sync);
+  sync(banner.playing);
+</script>
+</body>
+</html>
