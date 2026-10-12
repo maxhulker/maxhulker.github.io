@@ -1,22 +1,14 @@
+/* Dark only: the page background is the banner's own black, so the banner has no visible edge. */
 :root {
-  --bg: #e9ecf0;
-  --panel: #f6f7f9;
-  --ink: #12161c;
-  --muted: #5b6573;
-  --line: #cfd5dd;
-  --accent: #2f4bff;
   --stage: #05070a;
+  --bg: var(--stage);
+  --panel: #0d1117;
+  --ink: #e6ebf2;
+  --muted: #8b96a6;
+  --line: #1c232d;
+  --accent: #7d8fff;
   --display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0b0e13; --panel: #131820; --ink: #e6ebf2; --muted: #8b96a6; --line: #262e3a; --accent: #7d8fff;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0b0e13; --panel: #131820; --ink: #e6ebf2; --muted: #8b96a6; --line: #262e3a; --accent: #7d8fff;
   color-scheme: dark;
 }
 
