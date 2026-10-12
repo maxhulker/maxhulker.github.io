@@ -9,6 +9,7 @@
     frame: '0.4286', fit: 'cover',
     // site-only options
     colsMobile: 80, frameMobile: null, videos: [],
+    revealSpread: 0,   // with a reveal mode, also light up text this many cells around each hit
     ink: '#e6edf5', bg: '#05070a',
     monoFont: '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace',
     displayFont: '"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif',
@@ -149,22 +150,39 @@
       return [c, rows];
     }
 
-    function updatePresence(raw, dt) {
+    function updatePresence(raw, dt, cols, rows) {
       const len = raw.length;
       if (!presence || presence.length !== len) { presence = new Float32Array(len); prevLum = null; }
       const t = 1 - s.revealT / 100;
       const decay = s.trail > 0 ? Math.exp(-dt / (s.trail / 3)) : 0;
+      let hits = new Uint8Array(len);
       for (let i = 0; i < len; i++) {
-        let hit;
-        if (s.reveal === 'bright') hit = raw[i] > 0.15 + t * 0.75;
-        else if (s.reveal === 'dark') hit = raw[i] < 0.85 - t * 0.75;
-        else hit = prevLum ? Math.abs(raw[i] - prevLum[i]) > 0.01 + t * 0.2 : false;
-        presence[i] = hit ? 1 : presence[i] * decay;
+        if (s.reveal === 'bright') hits[i] = raw[i] > 0.15 + t * 0.75;
+        else if (s.reveal === 'dark') hits[i] = raw[i] < 0.85 - t * 0.75;
+        else hits[i] = prevLum ? Math.abs(raw[i] - prevLum[i]) > 0.01 + t * 0.2 : 0;
       }
+      if (s.revealSpread > 0) hits = spread(hits, cols, rows, Math.round(s.revealSpread));
+      for (let i = 0; i < len; i++) presence[i] = hits[i] ? 1 : presence[i] * decay;
       // Motion compares against a frame ~1/30s old rather than the last frame, so a 120Hz screen
       // (or a 30fps video drawn at 60Hz) sees the same amount of change as a 60Hz one.
       const now = performance.now();
       if (!prevLum || now - prevLumT >= 33) { prevLum = raw.slice(); prevLumT = now; }
+    }
+
+    // Grow each hit into a box `r` cells wide each way. Cells are taller than wide, so the vertical reach is
+    // scaled down to keep the patch roughly round on screen.
+    function spread(hits, cols, rows, r) {
+      const rv = Math.max(1, Math.round(r * cell.w / cell.h));
+      const across = new Uint8Array(hits.length), out = new Uint8Array(hits.length);
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        if (!hits[y * cols + x]) continue;
+        for (let k = Math.max(0, x - r), e = Math.min(cols - 1, x + r); k <= e; k++) across[y * cols + k] = 1;
+      }
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        if (!across[y * cols + x]) continue;
+        for (let k = Math.max(0, y - rv), e = Math.min(rows - 1, y + rv); k <= e; k++) out[k * cols + x] = 1;
+      }
+      return out;
     }
 
     // The grid's cells are taller than wide, so the text is squashed vertically in grid space to look right on screen.
@@ -243,7 +261,7 @@
       let alpha = null;
       // Nothing moves while paused (or with reduced motion on), so a motion reveal would hide the text entirely; show it whole instead.
       if (mask && s.reveal !== 'always' && (s.reveal !== 'motion' || playing)) {
-        updatePresence(lum, dtR);
+        updatePresence(lum, dtR, cols, rows);
         alpha = presence;
         for (let i = 0; i < mask.length; i++) if (mask[i] && alpha[i] < 0.08) mask[i] = 0;
       } else { presence = null; prevLum = null; }
