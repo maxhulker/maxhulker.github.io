@@ -8,7 +8,7 @@
     msgStyle: 'block', msgFill: 'video', msgWeight: '700', reveal: 'always', revealT: 50, trail: 0.8,
     frame: '0.4286', fit: 'cover',
     // site-only options
-    colsMobile: 80, frameMobile: '0.75', videos: [],
+    colsMobile: 80, frameMobile: null, videos: [],
     ink: '#e6edf5', bg: '#05070a',
     monoFont: '"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace',
     displayFont: '"Familjen Grotesk", "Helvetica Neue", Arial, sans-serif',
@@ -130,9 +130,15 @@
       octx.font = `100px ${s.monoFont}`;
       const ratio = octx.measureText('M').width / 100;
       cell.w = W / c; cell.font = cell.w / ratio; cell.h = cell.font;
+      // 'fill' sizes the grid to the container's CSS height, so the banner takes whatever shape the page gives it.
       const f = frame();
-      const aspect = f === 'match' ? srcH / srcW : parseFloat(f);
-      const rows = Math.max(1, Math.round(c * aspect * (cell.w / cell.h)));
+      canvas.parentElement.classList.toggle('fill', f === 'fill');
+      let rows;
+      if (f === 'fill') rows = Math.max(1, Math.floor(canvas.parentElement.clientHeight / cell.h));
+      else {
+        const aspect = f === 'match' ? srcH / srcW : parseFloat(f);
+        rows = Math.max(1, Math.round(c * aspect * (cell.w / cell.h)));
+      }
       const H = rows * cell.h;
       const pw = Math.round(W * dpr), ph = Math.round(H * dpr);
       if (canvas.width !== pw || canvas.height !== ph) {

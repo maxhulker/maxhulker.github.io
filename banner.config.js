@@ -21,5 +21,7 @@ window.BANNER_VIDEOS = [
 ];
 // --- END banner settings ---
 
-// Narrow screens (under 640px wide) use fewer columns and a taller frame so the name stays readable.
-window.BANNER_MOBILE = { colsMobile: 80, frameMobile: "0.75" };
+// Page layout. These override whatever Glyph Reel copies above.
+// frame "fill" makes the banner fill the browser window, whatever its shape. Use a ratio like "0.5625" (16:9) for a fixed shape.
+// Narrow screens (under 640px wide) use fewer columns so the name stays readable.
+window.BANNER_PAGE = { frame: "fill", colsMobile: 80 };

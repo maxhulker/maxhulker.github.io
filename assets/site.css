@@ -34,19 +34,20 @@ a:hover { color: var(--accent); }
 
 .wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; }
 
-/* banner */
-.banner { padding-top: 16px; }
-.stage { position: relative; background: var(--stage); border-radius: 6px; overflow: hidden; min-height: 120px; }
+/* banner: fills the window, minus the top bar so there's a hint of the page below */
+.banner { --topbar-h: 48px; }
+.stage { position: relative; background: var(--stage); overflow: hidden; min-height: 120px; }
+.stage.fill { height: calc(100vh - var(--topbar-h)); height: calc(100svh - var(--topbar-h)); min-height: 240px; }
 .stage canvas { display: block; max-width: 100%; }
 .stage-toggle {
-  position: absolute; right: 10px; bottom: 10px;
+  position: absolute; right: 16px; bottom: 12px;
   font: 500 12px var(--mono); color: var(--muted); background: color-mix(in srgb, var(--stage) 80%, transparent);
   border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; cursor: pointer;
 }
 .stage-toggle:hover { color: var(--ink); border-color: var(--muted); }
 
 /* top bar under the banner */
-.topbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 24px; padding-block: 14px 0; font: 13px var(--mono); color: var(--muted); }
+.topbar { height: var(--topbar-h); display: flex; justify-content: space-between; align-items: center; gap: 16px; font: 13px var(--mono); color: var(--muted); white-space: nowrap; }
 .topbar nav { display: flex; gap: 18px; }
 .topbar a { text-decoration: none; }
 

@@ -14,12 +14,12 @@
 </head>
 <body>
 
-<header class="banner wrap">
+<header class="banner">
   <div class="stage">
     <canvas id="banner" aria-hidden="true"></canvas>
     <button class="stage-toggle" id="bannerToggle" type="button">Pause</button>
   </div>
-  <div class="topbar">
+  <div class="topbar wrap">
     <span>max hulker</span>
     <nav aria-label="Sections">
       <a href="#work">Work</a>
@@ -87,7 +87,7 @@
 <script>
   const banner = GlyphBanner.mount(document.getElementById('banner'), {
     ...window.BANNER_SETTINGS,
-    ...window.BANNER_MOBILE,
+    ...window.BANNER_PAGE,
     videos: window.BANNER_VIDEOS || [],
   });
   const toggle = document.getElementById('bannerToggle');
