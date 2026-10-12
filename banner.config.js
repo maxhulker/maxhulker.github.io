@@ -13,8 +13,8 @@ window.BANNER_SETTINGS = {
   "msgColor": "accent",
   "msgAccent": "#f4efe6",
   "msgStyle": "block",
-  "reveal": "motion",
-  "revealT": 97,
+  "reveal": "bright",
+  "revealT": 70,
   "trail": 1.5,
   "frame": "0.4286",
   "fit": "cover"
@@ -27,5 +27,5 @@ window.BANNER_VIDEOS = [
 // Page layout. These override whatever Glyph Reel copies above.
 // frame "fill" makes the banner fill the browser window, whatever its shape. Use a ratio like "0.5625" (16:9) for a fixed shape.
 // Narrow screens (under 640px wide) use fewer columns so the name stays readable.
-// revealSpread: when the name only shows on movement, also light it up this many characters around each moving spot.
-window.BANNER_PAGE = { frame: "fill", colsMobile: 80, revealSpread: 4 };
+// revealSpread: when the name only shows over bright areas or movement, also light it up this many characters around each spot.
+window.BANNER_PAGE = { frame: "fill", colsMobile: 80, revealSpread: 0 };
