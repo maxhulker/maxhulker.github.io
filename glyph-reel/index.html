@@ -886,6 +886,9 @@ REEL</textarea>
   async function gh(path, { method = 'GET', body, raw } = {}) {
     const res = await fetch(`https://api.github.com/repos/${ed.repo.owner}/${ed.repo.repo}/${path}`, {
       method,
+      // GitHub lets browsers reuse the branch's latest commit for 60s, which would make a second publish
+      // look like someone else changed the site. Everything else is fetched by its id and never changes.
+      cache: path.startsWith('git/ref') ? 'no-store' : 'default',
       headers: {
         Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
         Authorization: `Bearer ${ed.token}`,
