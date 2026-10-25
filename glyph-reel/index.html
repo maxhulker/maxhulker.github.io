@@ -7,6 +7,7 @@
 <title>Glyph Reel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Familjen+Grotesk:wght@400;500;700&display=swap">
+<script src="../assets/gate.js"></script>
 <style>
 /* Layout: a single "reel" stage up top, a compact mixing-desk of controls beneath it. */
 :root {
@@ -105,10 +106,30 @@ select, input[type=text], input[type=password] { width: 100%; font: 13px var(--m
 .toggles label { text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 14px; gap: 6px; justify-content: flex-start; align-items: center; cursor: pointer; }
 .ramp { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: pre; overflow-x: auto; }
 .toast { font-size: 13px; color: var(--accent); min-height: 1em; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* the site's password gate (../assets/gate.js). The app stays laid out underneath (hidden, not removed) so its canvas keeps its size. */
+.gate { display: none; }
+[data-locked] .gate { position: fixed; inset: 0; z-index: 10; display: grid; place-content: center; gap: 12px; padding: 16px; background: var(--bg); }
+[data-locked] body { overflow: hidden; }
+[data-locked] body > .wrap { visibility: hidden; }
+.gate label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.gate .bar input { flex: 1 1 200px; width: auto; }
+.gate input[aria-invalid="true"] { border-color: #e5484d; }
+.gate input[aria-invalid="true"]::placeholder { color: #e5484d; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
+
+<form class="gate" id="gate">
+  <h1>Glyph Reel <span>@%#*+=-:.</span></h1>
+  <label for="gatePw">Password</label>
+  <div class="bar">
+    <input type="password" id="gatePw" placeholder="password" autocomplete="current-password" required>
+    <button type="submit" class="primary">Enter</button>
+  </div>
+  <span class="gate-err sr-only" role="alert"></span>
+</form>
 
 <div class="wrap">
   <header>

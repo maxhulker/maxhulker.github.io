@@ -51,6 +51,18 @@ a:hover { color: var(--accent); }
 .topbar nav { display: flex; gap: 18px; }
 .topbar a { text-decoration: none; }
 
+/* password gate (assets/gate.js): while locked, only the banner and the password box show */
+.gate { display: none; align-items: center; gap: 8px; }
+[data-locked] .gate { display: flex; }
+[data-locked] .topbar nav, [data-locked] main, [data-locked] footer { display: none; }
+.gate input, .gate button { font: 13px var(--mono); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; }
+.gate input { width: 16ch; min-width: 0; }
+.gate input::placeholder { color: var(--muted); }
+.gate input[aria-invalid="true"] { border-color: #e5484d; }
+.gate input[aria-invalid="true"]::placeholder { color: #e5484d; }
+.gate button { cursor: pointer; }
+.gate button:hover { border-color: var(--accent); }
+
 /* intro */
 .intro { padding-block: clamp(40px, 8vw, 88px) clamp(32px, 6vw, 64px); display: grid; gap: 14px; max-width: 46rem; }
 .intro h1 { margin: 0; font-size: clamp(34px, 5.5vw, 56px); line-height: 1.05; font-weight: 700; letter-spacing: -0.025em; text-wrap: balance; }
