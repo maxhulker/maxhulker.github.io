@@ -89,6 +89,9 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .clips li.on .name { background: var(--accent); color: #fff; }
 .clips li .rm { color: var(--muted); border-left: 1px solid var(--line); }
 .clips li .rm:hover { color: var(--ink); }
+.clips li.broken .name { color: var(--muted); font-style: italic; }
+.bar input[type=password] { flex: 1 1 240px; width: auto; }
+.hint a, .empty a { color: var(--accent); }
 .empty { margin: 0; font-size: 13px; color: var(--muted); }
 .knob label.per, .toggles label.per, .hint .per { color: var(--accent); }
 .hint { font-size: 13px; color: var(--muted); flex: 1 1 260px; }
@@ -97,7 +100,7 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 @media (max-width: 520px) { .knob.wide { grid-column: auto; } }
 textarea { width: 100%; resize: vertical; font: 700 15px var(--mono); padding: 8px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; }
 input[type=color] { width: 100%; height: 30px; padding: 0 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; }
-select, input[type=text] { width: 100%; font: 13px var(--mono); padding: 6px 8px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; }
+select, input[type=text], input[type=password] { width: 100%; font: 13px var(--mono); padding: 6px 8px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; }
 .toggles { display: flex; flex-wrap: wrap; gap: 14px; font-size: 14px; }
 .toggles label { text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 14px; gap: 6px; justify-content: flex-start; align-items: center; cursor: pointer; }
 .ramp { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: pre; overflow-x: auto; }
@@ -133,6 +136,24 @@ select, input[type=text] { width: 100%; font: 13px var(--mono); padding: 6px 8px
     <button id="full">Fullscreen</button>
   </div>
   <div class="toast" id="toast" role="status"></div>
+
+  <!-- Only shown at ?edit. Publishing needs a GitHub token kept in this browser, so visitors can't change anything. -->
+  <section class="reel" id="editor" aria-label="Site editor" hidden>
+    <div class="reel-head">
+      <span class="reel-title">Site editor <output id="edRepo"></output></span>
+      <button id="edForget" hidden>Forget token</button>
+    </div>
+    <div class="bar" id="edConnect" hidden>
+      <input type="password" id="edToken" placeholder="Paste a GitHub token" aria-label="GitHub token" autocomplete="off" spellcheck="false">
+      <button id="edConnectBtn" class="primary">Connect</button>
+      <span class="hint">Use a fine-grained token with access to only this repository and Contents set to Read and write. It stays in this browser. <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Make one on GitHub</a></span>
+    </div>
+    <div class="bar" id="edReady" hidden>
+      <button id="publish" class="primary">Publish to site</button>
+      <span class="hint" id="edPending"></span>
+    </div>
+    <p class="empty" id="edStatus" role="status"></p>
+  </section>
 
   <section class="reel" aria-label="Clip rotation">
     <div class="reel-head">
@@ -578,7 +599,7 @@ REEL</textarea>
   const fmt = t => isFinite(t) ? `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(Math.floor(t % 60)).padStart(2, '0')}` : '--:--';
 
   // ---------- clip rotation ----------
-  const clips = [];            // { name, url, look }
+  const clips = [];            // { name, url, look, file?, remote?, broken? } (remote: already on the site; broken: can't preview it here)
   let current = -1, clipTime = 0;
   const rot = { mode: 'end', every: 6, randStart: false, hold: false };
 
@@ -643,7 +664,7 @@ REEL</textarea>
     return {
       count: videos.length,
       text: `window.BANNER_SETTINGS = ${JSON.stringify(base, null, 2)};\n\n` +
-        `window.BANNER_VIDEOS = [\n  ${videos.join(',\n  ')}\n];\n`,
+        `window.BANNER_VIDEOS = [\n${videos.map(v => `  ${v}`).join(',\n')}${videos.length ? '\n' : ''}];\n`,
     };
   }
 
@@ -651,7 +672,14 @@ REEL</textarea>
     const files = [...list];
     const vids = files.filter(f => f.type.startsWith('video/'));
     if (!vids.length) { toast('None of those are videos. Try MP4, WebM or MOV files.'); return; }
-    vids.forEach(f => clips.push({ name: f.name, url: URL.createObjectURL(f), look: saved.has(f.name) ? { ...saved.get(f.name) } : null }));
+    vids.forEach(f => {
+      // a file named like a clip already in the rotation replaces that clip's video and keeps its look
+      const same = clips.find(c => c.name === f.name);
+      if (!same) return clips.push({ name: f.name, url: URL.createObjectURL(f), file: f, look: saved.has(f.name) ? { ...saved.get(f.name) } : null });
+      URL.revokeObjectURL(same.url);
+      Object.assign(same, { url: URL.createObjectURL(f), file: f, broken: false });
+      if (clips.indexOf(same) === current) playClip(current);
+    });
     const skipped = files.length - vids.length;
     toast(`Added ${vids.length} clip${vids.length > 1 ? 's' : ''}${skipped ? `, skipped ${skipped} non-video file${skipped > 1 ? 's' : ''}` : ''}.`);
     if (source !== 'video') playClip(randomIndex());
@@ -659,13 +687,16 @@ REEL</textarea>
   }
 
   function randomIndex() {
-    if (clips.length < 2) return 0;
-    let i; do i = Math.floor(Math.random() * clips.length); while (i === current);
+    const ok = clips.map((_, i) => i).filter(i => !clips[i].broken);
+    if (ok.length < 2) return ok.length ? ok[0] : -1;
+    let i; do i = ok[Math.floor(Math.random() * ok.length)]; while (i === current);
     return i;
   }
 
+  const cantPreview = c => toast(`Can't preview ${c.name} in this browser. It stays on the site unless you remove it.`);
   function playClip(i) {
-    if (!clips.length) return goDemo();
+    if (!clips.length || i < 0) return goDemo();
+    if (clips[i].broken) return cantPreview(clips[i]);
     if (current >= 0 && clips[current]) clips[current].look = pick(s, PER);
     current = i; clipTime = 0;
     const c = clips[i];
@@ -839,6 +870,194 @@ REEL</textarea>
     $('exportsEmpty').hidden = exportsList.length > 0;
   }
 
+  // ---------- site editor (?edit) ----------
+  // Loads the banner's clips and settings straight from the site's GitHub repo, and publishes changes back
+  // as one commit through the GitHub API. The token lives only in this browser; without it nothing can be written.
+  const CONFIG = 'banner.config.js';
+  const TOKEN_KEY = 'glyphReel.githubToken';
+  const VTYPE = { mp4: 'video/mp4', m4v: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime' };
+  const ed = { on: new URLSearchParams(location.search).has('edit'), repo: window.BANNER_REPO, token: '', base: null, sitePaths: new Map(), busy: false };
+  const repoName = () => `${ed.repo.owner}/${ed.repo.repo}`;
+  const tokenStore = {
+    get() { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } },
+    set(v) { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch {} },
+  };
+
+  async function gh(path, { method = 'GET', body, raw } = {}) {
+    const res = await fetch(`https://api.github.com/repos/${ed.repo.owner}/${ed.repo.repo}/${path}`, {
+      method,
+      headers: {
+        Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
+        Authorization: `Bearer ${ed.token}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body && JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = new Error((await res.json().catch(() => null))?.message || `GitHub answered ${res.status}`);
+      err.status = res.status; err.write = method !== 'GET';
+      throw err;
+    }
+    return raw ? res.blob() : res.json();
+  }
+  function explain(err) {
+    if (err.status === 401) return "GitHub didn't accept that token. It may have expired or been revoked. Make a new one and connect again.";
+    if (err.status === 403 || err.status === 404) return `This token can't ${err.write ? 'change' : 'read'} ${repoName()}. Check it has access to that repository with Contents set to Read and write.`;
+    if (err instanceof TypeError) return "Couldn't reach GitHub. Check your connection and try again.";
+    return err.message;
+  }
+
+  const b64ToText = b64 => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, '')), ch => ch.charCodeAt(0)));
+  const fileToB64 = file => new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.slice(r.result.indexOf(',') + 1));
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(file);
+  });
+  // The id git gives a file's contents, so a clip that's already on the site isn't uploaded again.
+  async function gitSha(buf) {
+    const bytes = new Uint8Array(buf), head = new TextEncoder().encode(`blob ${bytes.length}` + String.fromCharCode(0));
+    const all = new Uint8Array(head.length + bytes.length); all.set(head); all.set(bytes, head.length);
+    return [...new Uint8Array(await crypto.subtle.digest('SHA-1', all))].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  const repoPath = src => { const p = src.replace(/^\.?\//, ''); try { return decodeURIComponent(p); } catch { return p; } };
+
+  // The latest commit on the site's branch: its files (path -> sha) and banner.config.js.
+  async function readSite() {
+    const ref = await gh(`git/ref/heads/${ed.repo.branch}`);
+    const commit = await gh(`git/commits/${ref.object.sha}`);
+    const tree = await gh(`git/trees/${commit.tree.sha}?recursive=1`);
+    const files = new Map(tree.tree.filter(e => e.type === 'blob').map(e => [e.path, e.sha]));
+    const cfgSha = files.get(CONFIG);
+    if (!cfgSha) throw new Error(`${repoName()} has no ${CONFIG} on ${ed.repo.branch}.`);
+    const text = b64ToText((await gh(`git/blobs/${cfgSha}`)).content);
+    return { head: ref.object.sha, treeSha: commit.tree.sha, files, cfgSha, text };
+  }
+
+  async function loadFromRepo() {
+    edStatus('Loading the banner from GitHub…');
+    const site = await readSite();
+    // banner.config.js is the site's own script, so run it against a stand-in window to read its settings
+    const w = {}; new Function('window', site.text)(w);
+    // 140 is the banner's own default; Glyph Reel drops to 80 on phones, which mustn't get published to desktop
+    Object.assign(s, { cols: 140 }, w.BANNER_SETTINGS || {});
+    const basePer = pick(s, PER);
+    saved.clear();
+    const entries = (w.BANNER_VIDEOS || []).map(v => (typeof v === 'string' ? { src: v } : v)).filter(v => v?.src);
+    ed.sitePaths = new Map(entries.map(v => [fileOf(v.src), repoPath(v.src)]));
+    const local = new Set(clips.map(c => c.name));
+    const fresh = await Promise.all(entries.filter(v => !local.has(fileOf(v.src))).map(async v => {
+      const name = fileOf(v.src), sha = site.files.get(repoPath(v.src));
+      const c = { name, url: null, look: { ...basePer, ...pick(v, PER) }, remote: true, broken: !sha };
+      if (sha) {
+        try { const b = await gh(`git/blobs/${sha}`, { raw: true }); c.url = URL.createObjectURL(b.slice(0, b.size, VTYPE[name.split('.').pop().toLowerCase()] || b.type)); }
+        catch { c.broken = true; }
+      }
+      return c;
+    }));
+    clips.forEach(c => { if (ed.sitePaths.has(c.name)) c.remote = true; });
+    clips.push(...fresh);
+    ed.base = { cfgSha: site.cfgSha };
+    syncUI();
+    if (source !== 'video') playClip(randomIndex()); else renderClips();
+    const n = ed.sitePaths.size;
+    edStatus(n ? `Loaded ${n} clip${n > 1 ? 's' : ''} from the site. Add, remove or tune clips, then publish.` : 'The site has no banner clips yet. Add videos, tune them, then publish.');
+  }
+
+  function renderEditor() {
+    if (!ed.on) return;
+    const names = new Set(clips.map(c => c.name));
+    const up = clips.filter(c => c.file).map(c => c.name), gone = [...ed.sitePaths.keys()].filter(n => !names.has(n));
+    $('edPending').textContent = [
+      up.length && `Uploads ${up.join(', ')}.`,
+      gone.length && `Removes ${gone.join(', ')} from the site.`,
+      'Saves the look of every clip.',
+    ].filter(Boolean).join(' ');
+    $('publish').disabled = ed.busy || !ed.base;
+  }
+  function edStatus(msg, link) {
+    const p = $('edStatus'); p.textContent = msg;
+    if (link) { const a = document.createElement('a'); a.href = link.href; a.textContent = link.text; a.target = '_blank'; a.rel = 'noopener'; p.append(' ', a); }
+  }
+  function edShow(connected) {
+    $('edConnect').hidden = connected; $('edReady').hidden = $('edForget').hidden = !connected;
+    renderEditor();
+  }
+
+  async function publish() {
+    ed.busy = true; renderEditor();
+    try {
+      edStatus('Checking the site…');
+      const site = await readSite();
+      if (site.cfgSha !== ed.base.cfgSha) throw new Error(`${CONFIG} changed on GitHub since you opened the editor. Reload this page to pick up the latest version, then publish again.`);
+      const block = /(\/\/ --- START banner settings ---\r?\n)[\s\S]*?(\/\/ --- END banner settings ---)/;
+      if (!block.test(site.text)) throw new Error(`${CONFIG} is missing its START and END banner settings lines.`);
+      const eol = site.text.includes('\r\n') ? '\r\n' : '\n';
+      const cfgText = site.text.replace(block, (_, start, end) => start + siteConfig().text.replace(/\n/g, eol) + end);
+
+      const tree = [], added = [], removed = [];
+      for (const c of clips.filter(c => c.file)) {
+        const path = BANNER_DIR + c.name;
+        if (c.file.size > 100e6) throw new Error(`${c.name} is ${fmtSize(c.file.size)}. GitHub can't store files over 100 MB, so make it smaller first.`);
+        if (site.files.get(path) === await gitSha(await c.file.arrayBuffer())) { c.remote = true; delete c.file; continue; }
+        edStatus(`Uploading ${c.name} (${fmtSize(c.file.size)})…`);
+        const blob = await gh('git/blobs', { method: 'POST', body: { content: await fileToB64(c.file), encoding: 'base64' } });
+        tree.push({ path, mode: '100644', type: 'blob', sha: blob.sha }); added.push(c.name);
+      }
+      const keep = new Set(clips.map(c => c.name));
+      ed.sitePaths.forEach((path, name) => {
+        if (!keep.has(name) && site.files.has(path)) { tree.push({ path, mode: '100644', type: 'blob', sha: null }); removed.push(name); }
+      });
+      if (cfgText !== site.text) tree.push({ path: CONFIG, mode: '100644', type: 'blob', content: cfgText });
+      if (!tree.length) { edStatus('Nothing to publish. The site already matches what you have here.'); return; }
+
+      edStatus('Saving…');
+      const parts = [added.length && `add ${added.join(', ')}`, removed.length && `remove ${removed.join(', ')}`].filter(Boolean);
+      const newTree = await gh('git/trees', { method: 'POST', body: { base_tree: site.treeSha, tree } });
+      const commit = await gh('git/commits', { method: 'POST', body: { message: `Update the banner from Glyph Reel${parts.length ? `: ${parts.join('; ')}` : ''}`, tree: newTree.sha, parents: [site.head] } });
+      try { await gh(`git/refs/heads/${ed.repo.branch}`, { method: 'PATCH', body: { sha: commit.sha } }); }
+      catch (err) { if (err.status === 422) err.message = 'The site changed on GitHub while you were publishing. Reload this page and publish again.'; throw err; }
+
+      ed.base = { cfgSha: await gitSha(new TextEncoder().encode(cfgText)) };
+      clips.forEach(c => { if (c.file) { c.remote = true; delete c.file; } });
+      ed.sitePaths = new Map(clips.map(c => [c.name, BANNER_DIR + c.name]));
+      edStatus('Published. The live site picks it up in a minute or two (a few more if your browser cached the old version).', commit.html_url && { href: commit.html_url, text: 'See the commit' });
+    } catch (err) {
+      edStatus(explain(err));
+    } finally {
+      ed.busy = false; renderClips();
+    }
+  }
+
+  function initEditor() {
+    $('editor').hidden = false;
+    if (!ed.repo?.owner || !ed.repo?.repo || !ed.repo?.branch) {
+      edStatus(`To publish, add window.BANNER_REPO = { owner, repo, branch } to the site's ${CONFIG}.`);
+      return;
+    }
+    $('edRepo').textContent = `${repoName()} · ${ed.repo.branch}`;
+    $('edConnectBtn').addEventListener('click', async () => {
+      const t = $('edToken').value.trim(); if (!t || ed.busy) return;
+      ed.token = t;
+      try { await loadFromRepo(); tokenStore.set(t); $('edToken').value = ''; edShow(true); }
+      catch (err) { ed.token = ''; edStatus(explain(err)); }
+    });
+    $('edToken').addEventListener('keydown', e => { if (e.key === 'Enter') $('edConnectBtn').click(); });
+    $('publish').addEventListener('click', () => !ed.busy && publish());
+    $('edForget').addEventListener('click', () => {
+      tokenStore.set(''); ed.token = ''; ed.base = null; edShow(false);
+      edStatus('Token removed from this browser. To shut it off everywhere, revoke it on GitHub.', { href: 'https://github.com/settings/personal-access-tokens', text: 'Your tokens' });
+    });
+    ed.token = tokenStore.get();
+    if (!ed.token) { edShow(false); edStatus('Connect a GitHub token to load the banner and publish changes.'); return; }
+    edShow(true);
+    loadFromRepo().catch(err => {
+      if (err.status === 401) { tokenStore.set(''); ed.token = ''; edShow(false); }
+      edStatus(explain(err));
+    });
+  }
+
   function removeClip(i) {
     URL.revokeObjectURL(clips[i].url);
     clips.splice(i, 1);
@@ -849,7 +1068,7 @@ REEL</textarea>
   function renderClips() {
     const ul = $('clips'); ul.innerHTML = '';
     clips.forEach((c, i) => {
-      const li = document.createElement('li'); if (i === current) li.className = 'on';
+      const li = document.createElement('li'); if (i === current) li.className = 'on'; if (c.broken) li.className = 'broken';
       const nm = document.createElement('button'); nm.className = 'name'; nm.textContent = c.name; nm.title = `Play ${c.name}`;
       nm.addEventListener('click', () => playClip(i));
       const rm = document.createElement('button'); rm.className = 'rm'; rm.textContent = '×'; rm.setAttribute('aria-label', `Remove ${c.name}`);
@@ -863,6 +1082,7 @@ REEL</textarea>
     $('savedInfo').hidden = !missing.length;
     $('savedInfo').textContent = `Saved in the site's banner but not loaded here: ${missing.join(', ')}. Add those files to keep tuning them. They stay in the banner either way.`;
     $('lookAll').disabled = clips.length + missing.length < 2;
+    renderEditor();
   }
 
   vid.addEventListener('loadedmetadata', () => {
@@ -874,7 +1094,10 @@ REEL</textarea>
   });
   vid.addEventListener('error', () => {
     if (current < 0 || !vid.getAttribute('src')) return;
-    toast(`Can't play ${clips[current].name} in this browser. Removed it from the rotation. MP4 (H.264) works everywhere.`);
+    const c = clips[current];
+    // a clip that's on the site stays in the rotation, so publishing doesn't delete it just because this browser can't play it
+    if (c.remote) { c.broken = true; cantPreview(c); playClip(randomIndex()); return; }
+    toast(`Can't play ${c.name} in this browser. Removed it from the rotation. MP4 (H.264) works everywhere.`);
     removeClip(current);
   });
 
@@ -966,6 +1189,7 @@ REEL</textarea>
   if (window.innerWidth < 600) { s.cols = 80; $('cols').value = 80; $('colsV').textContent = 80; }
   setRamp();
   loadSiteConfig();
+  if (ed.on) initEditor();
   renderClips();
 
   document.addEventListener('keydown', e => {

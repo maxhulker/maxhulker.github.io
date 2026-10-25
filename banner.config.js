@@ -1,6 +1,7 @@
-// Banner settings. To change them: open Glyph Reel next to the site (http://localhost:8000/glyph-reel/),
-// add your banner clips, tune each one, press "Copy settings for site", and paste over everything
-// between the START and END lines below.
+// Banner settings. The easy way to change them: open the site editor at maxhulker.com/glyph-reel/?edit
+// and press "Publish to site" (README.md has the one-time setup). By hand: open Glyph Reel next to the
+// site (http://localhost:8000/glyph-reel/), add your banner clips, tune each one, press "Copy settings
+// for site", and paste over everything between the START and END lines below.
 //
 // BANNER_SETTINGS is the shared look (and the look of the built-in scene when there are no videos).
 // Each entry in BANNER_VIDEOS is a file in assets/banner/ plus any settings that clip changes.
@@ -29,3 +30,6 @@ window.BANNER_VIDEOS = [
 // Narrow screens (under 640px wide) use fewer columns so the name stays readable.
 // revealSpread: when the name only shows over bright areas or movement, also light it up this many characters around each spot.
 window.BANNER_PAGE = { frame: "fill", colsMobile: 80, revealSpread: 0 };
+
+// Where Glyph Reel's site editor (glyph-reel/?edit) publishes banner changes. See README.md.
+window.BANNER_REPO = { owner: "maxhulker", repo: "maxhulker.github.io", branch: "main" };

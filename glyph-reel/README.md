@@ -21,6 +21,10 @@ It's one file with no build step.
 - **Clip rotation:** add multiple videos and they play in random order, switching at the end of each clip or on a timer, with optional random start points
 - **Export:** mark in and out points and export that section, or record live (rotation cuts included) at 720p, 1080p or 4K, 24/30/60 fps
 
+## Site editor
+
+When Glyph Reel sits inside a site whose `banner.config.js` defines `window.BANNER_REPO`, opening it at `glyph-reel/?edit` shows a site editor. Connect a GitHub token with Contents read and write access to that one repository. The editor then loads the banner's clips from GitHub and publishes changes back in a single commit. The token is stored in that browser only, and the editor never appears without `?edit`. See the site's README for token setup.
+
 ## Keyboard
 
 | Key | Action |
