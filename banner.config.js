@@ -8,10 +8,10 @@
 
 // --- START banner settings ---
 window.BANNER_SETTINGS = {
-  "cols": 140,
+  "cols": 190,
   "ramp": " .:-=+*#%@",
-  "contrast": 1.2,
-  "bright": 0,
+  "contrast": 1.9,
+  "bright": -137,
   "color": "full",
   "invert": false,
   "edges": false,
@@ -26,13 +26,14 @@ window.BANNER_SETTINGS = {
   "msgFill": "video",
   "msgWeight": "700",
   "reveal": "bright",
-  "revealT": 70,
+  "revealT": 61,
   "trail": 1.5,
   "frame": "0.4286",
   "fit": "cover"
 };
 
 window.BANNER_VIDEOS = [
+  {"src":"assets/banner/%5BASMR%202%20Hours%5D%20Pure%20%26%20Gentle%20Ocean%20Waves%20in%20Okinawa%20%F0%9F%8C%8A%20Relaxing%20Nature%20Sounds%20for%20Sleep%20%26%20Study_5169_5209.mp4"}
 ];
 // --- END banner settings ---
 
